@@ -56,16 +56,15 @@ public class ElizaServerTest {
 	}
 
 	@Test(timeout = 1000)
-	@Ignore
 	public void onChat() throws DeploymentException, IOException, URISyntaxException, InterruptedException {
-		// COMPLETE ME!!
+		CountDownLatch latch = new CountDownLatch(4);
 		List<String> list = new ArrayList<>();
 		ClientEndpointConfig configuration = ClientEndpointConfig.Builder.create().build();
 		ClientManager client = ClientManager.createClient();
-		client.connectToServer(new ElizaEndpointToComplete(list), configuration, new URI("ws://localhost:8025/websockets/eliza"));
-		// COMPLETE ME!!
-		// COMPLETE ME!!
-		// COMPLETE ME!!
+		client.connectToServer(new ElizaEndpointToComplete(list, latch), configuration, new URI("ws://localhost:8025/websockets/eliza"));
+    latch.await();
+    assertEquals(4,list.size());
+    assertEquals("The doctor is in.",list.get(0));
 	}
 
 	@After
@@ -94,15 +93,21 @@ public class ElizaServerTest {
     private static class ElizaEndpointToComplete extends Endpoint {
 
         private final List<String> list;
+        private final CountDownLatch latch;
 
-        ElizaEndpointToComplete(List<String> list) {
+        ElizaEndpointToComplete(List<String> list, CountDownLatch latch) {
             this.list = list;
+            this.latch = latch;
         }
 
         @Override
         public void onOpen(Session session, EndpointConfig config) {
-
-            // COMPLETE ME!!!
+            session.getAsyncRemote().sendText("Test 1");
+            try{
+              session.getBasicRemote().sendText("Test 2");
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
 
             session.addMessageHandler(new ElizaMessageHandlerToComplete());
         }
@@ -112,7 +117,8 @@ public class ElizaServerTest {
             @Override
             public void onMessage(String message) {
                 list.add(message);
-                // COMPLETE ME!!!
+                LOGGER.info(format("Client received '%s'",message));
+                latch.countDown();
             }
         }
     }
